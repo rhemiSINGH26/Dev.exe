@@ -1,0 +1,25 @@
+# Initialise a local repository
+git init myproject
+cd myproject
+
+# Create a file and make the first commit
+echo "# My DevOps Project" > README.md
+git add README.md
+git commit -m "Initial commit: add README"
+
+
+git checkout -b feature/hello
+
+echo "Hello from feature branch" > hello.txt
+git add hello.txt
+git commit -m "feat: add hello.txt"
+
+
+# Connect to remote (first time only)
+git remote add origin https://github.com/<username>/myproject.git
+git push -u origin feature/hello
+
+git checkout main
+git merge feature/hello
+git push origin main
+git log --oneline --graph
