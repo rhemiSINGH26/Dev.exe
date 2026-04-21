@@ -1,0 +1,64 @@
+# Create a persistent volume for Jenkins data
+docker volume create jenkins-data
+
+# Run Jenkins (mounts Docker socket so it can build images)
+docker run -d \
+  --name jenkins \
+  -p 8080:8080 -p 50000:50000 \
+  -v jenkins-data:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  jenkins/jenkins:lts
+
+# Get the initial admin password
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+
+
+
+
+docker exec -u root jenkins bash -c \
+  "apt-get update && apt-get install -y docker.io"
+
+
+
+
+
+pipeline {
+    agent any
+    environment {
+        IMAGE_NAME      = "myapp"
+        DOCKER_HUB_USER = "<your-dockerhub-username>"
+    }
+    stages {
+        stage('Clone') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/<username>/<repo>.git'
+            }
+        }
+        stage('Build Image') {
+            steps {
+                sh 'docker build -t $DOCKER_HUB_USER/$IMAGE_NAME:latest .'
+            }
+        }
+        stage('Push to Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                      echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                      docker push $DOCKER_HUB_USER/$IMAGE_NAME:latest
+                    '''
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh 'docker run -d -p 5000:5000 $DOCKER_HUB_USER/$IMAGE_NAME:latest'
+            }
+        }
+    }
+}
